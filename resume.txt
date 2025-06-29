@@ -1,0 +1,47 @@
+KYLE TRAN    								                             
+(505) 392-1676 | kylettra@usc.edu | LinkedIn | Los Angeles, CA
+
+EDUCATION
+
+University of Southern California	                                                                                                                                  Los Angeles, CA
+Bachelor of Science in Real Estate Development, Minor in Finance & Applied Analytics 	                                                         Dec 2025                                                                                                        
+•	GPA: 3.6, Dean’s List
+
+Certificates: Argus Enterprise Certified, California Real Estate Sales License (DRE #02235838), A.CRE Financial Modeling
+Technical Skills: Advanced Excel (Power Query, Pivot Tables), Python, Power BI, Tableau, Argus Enterprise, CoStar, Yardi
+
+PROFESSIONAL SUMMARY
+
+Data-driven real estate undergraduate leveraging Python, Excel, and ARGUS to extract insights from complex market data. Experienced in portfolio analytics for 25+ multifamily assets ($100M+), financial modeling, and data visualization to analyze data.
+                                                                                                   
+PROFESSIONAL EXPERIENCE
+
+CBRE Capital Markets, Inc.                                                                                                                                          Los Angeles, CA Capital Markets Fellowship                                                                                                                                                       Spring 2025
+•	Participated in a 6-week virtual fellowship program at CBRE Capital Markets, gaining insights into capital stack formation, capital sources, and real estate finance terminology, while engaging with industry professionals to understand various roles.
+
+MRK Partners	                                                                                                                                                                  Los Angeles, CA Portfolio Analyst Intern	                                                                                                                                              Oct 2024 – May 2025
+•	Analyzed T12s for 25+ multifamily assets, performing time series analysis to identify key variances and trends, presented findings and opportunities for cost optimization in utilities. 
+•	Developed a resident demographics dashboard using Power BI and Excel Power Pivot and created an LPA reporting dashboard for the portfolio team—ensuring compliance with reporting covenant dates across the entire portfolio.
+•	Analyzed financial statements for 25 assets to create quarterly reports for LP and bond reporting requirements, presenting key finds on portfolio performance to the CFO.
+•	Developed and built a Python desktop application that automated the import, cleaning, and standardization of portfolio data-reducing manual data preparation time by approximately 60% and enhancing data quality for asset management.
+•	Constructed a web application to streamline data imports, enabling efficient time series and KPI analysis across the portfolio, presenting both applications and their impact to the CEO and executive leadership team.
+
+PMI Properties 	                                                                                                                                                                Los Angeles, CA 
+Analyst, Multifamily Acquisitions and Asset Management	                                                                                           Jan 2024 – Oct 2024 
+•	Led market research and competitive analysis for three multifamily portfolios (100+ units), identifying rental premiums, concessions, vacancy trends, and upcoming supply.
+•	Reviewed new lease agreements to identify lease recovery structures, base rent, and rent increase schedules, to import into AE.
+
+Lever Capital Partners	                                                                                                                                                    Los Angeles, CA Fall Analyst, Capital Markets	                                                                                                                                    Aug 2023 – Dec 2023 
+•	Attended 12 capital calls and supported structuring of $100M+ in loan solutions, while building and maintaing lending database tracking 1,000+ financing criteria, optimizing deal-capital source matching efficiency.
+
+LEADERSHIP
+
+Trojan Real Estate Association, Director of Finance                                                                                                  Jan 2023 – Present
+•	Manage a $20,000 budget, oversee fund allocations, and report monthly while leading holiday toy drive to provide research-based toys supporting cognitive development for 270+ children in underserved communities.
+
+American Realty Advisors Tomorrow’s Real Estate Leaders Program                                                                    	             Nov 2024
+•	Structured and presented investment thesis for multifamily acquisition ($85m) to investment committee. 
+
+SKILLS & CERTIFICATES	 	 	 			
+
+Interests: Snowboarding, Aviation, Carpentry

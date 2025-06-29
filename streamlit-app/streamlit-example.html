@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MRK Water Analytics Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    /* reset and typography */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    /* layout styles */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 260px;
+      height: 100%;
+      background-color: #333;
+      color: white;
+      padding: 20px;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+    
+    .main {
+      margin-left: 260px;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    
+    /* tab navigation */
+    .tab-navigation {
+      display: flex;
+      border-bottom: 2px solid #ddd;
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+    
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 14px;
+      color: #666;
+      white-space: nowrap;
+      transition: all 0.3s ease;
+    }
+    
+    .tab.active {
+      color: #F47C20;
+      border-bottom: 2px solid #F47C20;
+      margin-bottom: -2px;
+    }
+    
+    .tab:hover:not(.active) {
+      color: #0C223A;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* component styles */
+    .input-group {
+      margin-bottom: 15px;
+    }
+    
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    .input-group input,
+    .input-group select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #666;
+      background-color: #444;
+      color: white;
+      border-radius: 3px;
+    }
+    
+    .button {
+      background-color: #F47C20;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      cursor: pointer;
+      width: 100%;
+      border-radius: 3px;
+      transition: background-color 0.3s;
+    }
+    
+    .button:hover {
+      background-color: #d56617;
+    }
+    
+    .button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+    
+    .section {
+      background-color: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* kpi cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .kpi-card {
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .kpi-title {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .kpi-trend {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .trend-arrow {
+      font-size: 16px;
+    }
+    
+    .trend-up {
+      color: #00aa00;
+    }
+    
+    .trend-down {
+      color: #ff4444;
+    }
+    
+    .kpi-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #0C223A;
+      margin-bottom: 5px;
+    }
+    
+    .kpi-comparison {
+      font-size: 13px;
+      color: #666;
+    }
+    
+    .kpi-target {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+      font-size: 13px;
+    }
+    
+    .status-good {
+      color: #00aa00;
+    }
+    
+    .status-warning {
+      color: #ff8800;
+    }
+    
+    .status-alert {
+      color: #ff4444;
+    }
+    
+    /* alerts */
+    .alert-section {
+      background: #fff5f5;
+      border-left: 4px solid #ff4444;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    .alert-header {
+      font-weight: bold;
+      color: #ff4444;
+      margin-bottom: 10px;
+    }
+    
+    .alert-item {
+      padding: 5px 0;
+      color: #666;
+    }
+    
+    /* financial snapshot */
+    .financial-summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .financial-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .financial-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #0C223A;
+    }
+    
+    .financial-detail {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .financial-detail:last-child {
+      border-bottom: none;
+    }
+    
+    .financial-label {
+      color: #666;
+    }
+    
+    .financial-value {
+      font-weight: bold;
+      color: #0C223A;
+    }
+    
+    /* chart styles */
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin-top: 20px;
+    }
+    
+    /* sparkline */
+    .sparkline {
+      display: inline-block;
+      position: relative;
+      height: 20px;
+      width: 60px;
+    }
+    
+    .sparkline canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    /* executive summary styles */
+    .exec-summary-section {
+      margin-bottom: 30px;
+    }
+    
+    .exec-kpi-item {
+      margin-bottom: 25px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .exec-kpi-header {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #0C223A;
+    }
+    
+    .exec-metric {
+      margin-bottom: 10px;
+      padding: 10px;
+      background: white;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .exec-metric-label {
+      font-weight: 600;
+    }
+    
+    .exec-metric-value {
+      color: #0C223A;
+      font-weight: bold;
+    }
+    
+    .exec-rationale {
+      font-size: 14px;
+      color: #666;
+      font-style: italic;
+      margin-top: 10px;
+      padding: 10px;
+      background: #e8f5f7;
+      border-left: 3px solid #F47C20;
+    }
+    
+    .code-block {
+      background: #f4f4f4;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      font-family: monospace;
+      margin: 10px 0;
+      white-space: pre-wrap;
+    }
+    
+    /* property benchmarking table */
+    .benchmarking-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    
+    .benchmarking-table th,
+    .benchmarking-table td {
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    
+    .benchmarking-table th {
+      background-color: #f5f5f5;
+      font-weight: bold;
+    }
+    
+    .benchmarking-table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    
+    .highlight-flag {
+      background-color: #fff3cd;
+      border-left: 3px solid #ffa500;
+      padding: 5px 10px;
+      margin: 5px 0;
+    }
+    
+    /* responsive design */
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      
+      .main {
+        margin-left: 0;
+      }
+      
+      .mobile-menu {
+        display: block;
+        background-color: #333;
+        color: white;
+        padding: 10px;
+        text-align: center;
+        cursor: pointer;
+      }
+      
+      .financial-summary {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .mobile-menu {
+      display: none;
+    }
+    
+    /* loading overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 9999;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #F47C20;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+  </div>
+  
+  <!-- mobile menu toggle -->
+  <div class="mobile-menu" id="mobileMenu" onclick="toggleSidebar()">☰ Menu</div>
+  
+  <!-- sidebar -->
+  <div class="sidebar" id="sidebar">
+    <h3>MRK Water Analytics</h3>
+    
+    <div class="input-group">
+      <label>Upload CSV Data</label>
+      <input type="file" id="csvFile" accept=".csv">
+    </div>
+    
+    <div id="messageContainer"></div>
+    
+    <h3>Data Mapping</h3>
+    <div class="input-group">
+      <label>Month Column</label>
+      <select id="monthColumn">
+        <option value="">Select column...</option>
+      </select>
+    </div>
+    
+    <div class="input-group">
+      <label>Year Column</label>
+      <select id="yearColumn">
+        <option value="">Select column...</option>
+      </select>
+    </div>
+    
+    <div class="input-group">
+      <label>Usage Column</label>
+      <select id="usageColumn">
+        <option value="">Select column...</option>
+      </select>
+    </div>
+    
+    <div class="input-group">
+      <label>Cost Column</label>
+      <select id="costColumn">
+        <option value="">Select column...</option>
+      </select>
+    </div>
+    
+    <button class="button" id="analyzeButton" onclick="analyzeData()" disabled>Analyze Data</button>
+    
+    <h3>Settings</h3>
+    <div class="input-group">
+      <label>Monthly Budget</label>
+      <input type="number" id="monthlyBudget" value="10000" step="100">
+    </div>
+    
+    <div class="input-group">
+      <label>Usage Target</label>
+      <input type="number" id="usageTarget" value="5000" step="100">
+    </div>
+    
+    <div class="input-group">
+      <label>
+        <input type="checkbox" id="includeHeaderRow" checked> First row contains headers
+      </label>
+    </div>
+  </div>
+  
+  <!-- main content -->
+  <div class="main">
+    <h1>MRK Portfolio Water Analytics Dashboard</h1>
+    
+    <!-- tab navigation -->
+    <div class="tab-navigation">
+      <button class="tab active" onclick="switchTab('overview')">Performance Overview</button>
+      <button class="tab" onclick="switchTab('executive')">Executive Summary</button>
+      <button class="tab" onclick="switchTab('consumption')">Consumption Analysis</button>
+      <button class="tab" onclick="switchTab('analytics')">Detailed Analytics</button>
+      <button class="tab" onclick="switchTab('data')">Data Management</button>
+    </div>
+    
+    <!-- overview tab -->
+    <div id="overviewTab" class="tab-content active">
+      <!-- alerts section -->
+      <div id="alertSection" class="alert-section" style="display: none;">
+        <div class="alert-header">⚠️ Critical Alerts</div>
+        <div id="alertItems"></div>
+      </div>
+      
+      <!-- kpi grid -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-title">Monthly Cost</div>
+            <div class="kpi-trend">
+              <span class="trend-arrow" id="costTrend">-</span>
+              <span id="costTrendPercent">0%</span>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpiCost">$0</div>
+          <div class="kpi-comparison">vs last month: <span id="costComparison">-</span></div>
+          <div class="kpi-target">Target: <span id="costTarget">$0</span> | Status: <span id="costStatus">-</span></div>
+        </div>
+        
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-title">Monthly Usage</div>
+            <div class="kpi-trend">
+              <span class="trend-arrow" id="usageTrend">-</span>
+              <span id="usageTrendPercent">0%</span>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpiUsage">0</div>
+          <div class="kpi-comparison">vs last month: <span id="usageComparison">-</span></div>
+          <div class="kpi-target">Target: <span id="usageTargetValue">0</span> | Status: <span id="usageStatus">-</span></div>
+        </div>
+        
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-title">Cost per Unit</div>
+            <div class="kpi-trend">
+              <span class="trend-arrow" id="efficiencyTrend">-</span>
+              <span id="efficiencyTrendPercent">0%</span>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpiEfficiency">$0.00</div>
+          <div class="kpi-comparison">vs last month: <span id="efficiencyComparison">-</span></div>
+          <div class="kpi-target">Efficiency target: <span id="efficiencyTarget">$0.00</span></div>
+        </div>
+        
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-title">6-Month Trend</div>
+            <div class="sparkline" id="usageSparkline"></div>
+          </div>
+          <div class="kpi-value" id="kpiTrendSummary">Stable</div>
+          <div class="kpi-comparison">Avg Growth: <span id="avgGrowth">0%</span></div>
+        </div>
+      </div>
+      
+      <!-- financial snapshot -->
+      <div class="financial-summary">
+        <div class="financial-card">
+          <div class="financial-title">This Period</div>
+          <div class="financial-detail">
+            <span class="financial-label">Total Cost</span>
+            <span class="financial-value" id="thisPeriodCost">$0</span>
+          </div>
+          <div class="financial-detail">
+            <span class="financial-label">Total Usage</span>
+            <span class="financial-value" id="thisPeriodUsage">0</span>
+          </div>
+          <div class="financial-detail">
+            <span class="financial-label">Avg Cost/Unit</span>
+            <span class="financial-value" id="thisPeriodEfficiency">$0.00</span>
+          </div>
+        </div>
+        
+        <div class="financial-card">
+          <div class="financial-title">Year to Date</div>
+          <div class="financial-detail">
+            <span class="financial-label">Total Spend</span>
+            <span class="financial-value" id="ytdSpend">$0</span>
+          </div>
+          <div class="financial-detail">
+            <span class="financial-label">Budget Utilized</span>
+            <span class="financial-value" id="budgetUtilized">0%</span>
+          </div>
+          <div class="financial-detail">
+            <span class="financial-label">Projected Annual Cost</span>
+            <span class="financial-value" id="projectedAnnual">$0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- executive summary tab -->
+    <div id="executiveTab" class="tab-content">
+      <div class="exec-summary-section">
+        <h2>Key Performance Indicators (KPIs)</h2>
+        
+        <div class="exec-kpi-item">
+          <div class="exec-kpi-header">1. Monthly Water Expenditure</div>
+          <div class="exec-metric">
+            <span class="exec-metric-label">Total Effective Expense vs Usage Expense:</span>
+            <span class="exec-metric-value" id="execTotalExpense">$0</span>
+          </div>
+          <div class="exec-metric">
+            <span class="exec-metric-label">Non-Utility Costs Percentage:</span>
+            <span class="exec-metric-value" id="execNonUtilityPercent">0%</span>
+          </div>
+          <div class="code-block" id="execExpenseCode">
+monthly_expense = df.groupby('Month')[['Total_Effective_Expense','Usage_Expense']].sum()
+          </div>
+          <div class="exec-rationale" id="execExpenseRationale">
+          </div>
+        </div>
+        
+        <div class="exec-kpi-item">
+          <div class="exec-kpi-header">2. Unit Efficiency Metrics</div>
+          <div class="exec-metric">
+            <span class="exec-metric-label">Average Usage Per Unit:</span>
+            <span class="exec-metric-value" id="execAvgUsagePerUnit">0</span>
+          </div>
+          <div class="exec-metric">
+            <span class="exec-metric-label">Outlier Detection:</span>
+            <span class="exec-metric-value" id="execOutlierCount">0 properties flagged</span>
+          </div>
+          <div class="highlight-flag" id="execOutlierSummary" style="display: none;"></div>
+        </div>
+        
+        <div class="exec-kpi-item">
+          <div class="exec-kpi-header">3. Service Continuity</div>
+          <div class="exec-metric">
+            <span class="exec-metric-label">Days in Period Consistency:</span>
+            <span class="exec-metric-value" id="execDaysConsistency">0% consistent</span>
+          </div>
+          <div class="exec-metric">
+            <span class="exec-metric-label">Zero Period Alert:</span>
+            <span class="exec-metric-value" id="execZeroPeriodCount">0 records</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- consumption analysis tab -->
+    <div id="consumptionTab" class="tab-content">
+      <div class="section">
+        <h2>Core Visualizations</h2>
+        
+        <div class="exec-kpi-item">
+          <div class="exec-kpi-header">1. Temporal Patterns</div>
+          <div class="chart-container">
+            <canvas id="temporalChart"></canvas>
+          </div>
+          <div class="code-block">
+daily_usage = df.pivot_table(index='Date', values='Daily_Total_Usage', aggfunc='sum')
+          </div>
+          <div class="exec-rationale" id="temporalAnalysis">
+          </div>
+        </div>
+        
+        <div class="exec-kpi-item">
+          <div class="exec-kpi-header">2. Property-Level Benchmarking</div>
+          <div class="chart-container">
+            <canvas id="benchmarkingChart"></canvas>
+          </div>
+          <table class="benchmarking-table" id="top10Table">
+            <thead>
+              <tr>
+                <th>Property</th>
+                <th>Total Usage</th>
+                <th>Units</th>
+                <th>Usage per Unit</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="exec-kpi-item">
+          <div class="exec-kpi-header">3. Rate Analysis</div>
+          <div class="chart-container">
+            <canvas id="rateChart"></canvas>
+          </div>
+          <div class="chart-container">
+            <canvas id="rateCorrelationChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- analytics tab -->
+    <div id="analyticsTab" class="tab-content">
+      <div class="section">
+        <h2>Usage and Cost Trends</h2>
+        <div class="chart-container">
+          <canvas id="trendsChart"></canvas>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>Performance vs. Targets</h2>
+        <div class="chart-container">
+          <canvas id="targetChart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <!-- trends tab -->
+    <div id="trendsTab" class="tab-content">
+      <div class="section">
+        <h2>Advanced Trend Analysis</h2>
+        <div class="chart-container">
+          <canvas id="advancedChart"></canvas>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>Seasonal Patterns</h2>
+        <div class="chart-container">
+          <canvas id="seasonalChart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <!-- data tab -->
+    <div id="dataTab" class="tab-content">
+      <div class="section">
+        <h2>Data Summary</h2>
+        <div style="overflow-x: auto;">
+          <table id="dataTable" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background-color: #f5f5f5;">
+                <th style="padding: 8px; border: 1px solid #ddd;">Year</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Month</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Usage</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Cost</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Cost per Unit</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>Data Export</h2>
+        <div style="display: flex; gap: 10px;">
+          <button class="button" style="width: auto;" onclick="exportData('csv')">Export as CSV</button>
+          <button class="button" style="width: auto;" onclick="exportData('json')">Export as JSON</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // global variables
+    let rawData = [];
+    let processedData = [];
+    let charts = {};
+    let currentTab = 'overview';
+    
+    // tab switching
+    function switchTab(tabName) {
+      currentTab = tabName;
+      
+      // update tab navigation
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      // update tab content
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.getElementById(`${tabName}Tab`).classList.add('active');
+      
+      // update charts if needed
+      if (Object.keys(charts).length > 0) {
+        updateChartsForTab(tabName);
+      }
+    }
+    
+    // utility functions
+    function showLoading() {
+      document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+    
+    function hideLoading() {
+      document.getElementById('loadingOverlay').style.display = 'none';
+    }
+    
+    function showMessage(message, type = 'success') {
+      const container = document.getElementById('messageContainer');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `${type}-message`;
+      messageDiv.textContent = message;
+      messageDiv.style.display = 'block';
+      
+      container.innerHTML = '';
+      container.appendChild(messageDiv);
+      
+      if (type === 'success') {
+        setTimeout(() => {
+          messageDiv.style.display = 'none';
+        }, 3000);
+      }
+    }
+    
+    function populateDropdown(id, options) {
+      const select = document.getElementById(id);
+      select.innerHTML = '<option value="">Select column...</option>';
+      
+      options.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option;
+        optionElement.text = option;
+        select.appendChild(optionElement);
+      });
+    }
+    
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+    }
+    
+    // file upload handler
+    document.getElementById('csvFile').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        showMessage('Please upload a CSV file', 'error');
+        return;
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {
+        showMessage('File size exceeds 10MB limit', 'error');
+        return;
+      }
+      
+      showLoading();
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          parseCSV(e.target.result);
+        } catch (error) {
+          showMessage(`Error reading file: ${error.message}`, 'error');
+          hideLoading();
+        }
+      };
+      reader.onerror = function() {
+        showMessage('Error reading file', 'error');
+        hideLoading();
+      };
+      reader.readAsText(file);
+    });
+    
+    // csv parsing
+    function parseCSV(csvContent) {
+      const config = {
+        header: document.getElementById('includeHeaderRow').checked,
+        skipEmptyLines: true,
+        trimHeaders: true,
+        dynamicTyping: true,
+        complete: function(results) {
+          if (results.errors.length > 0) {
+            showMessage(`CSV parsing errors: ${results.errors.join(', ')}`, 'warning');
+          }
+          
+          rawData = results.data;
+          
+          let headers = [];
+          if (document.getElementById('includeHeaderRow').checked) {
+            headers = results.meta.fields || [];
+          } else {
+            headers = Array.from({ length: rawData[0].length }, (_, i) => `Column ${i + 1}`);
+          }
+          
+          populateDropdown('monthColumn', headers);
+          populateDropdown('yearColumn', headers);
+          populateDropdown('usageColumn', headers);
+          populateDropdown('costColumn', headers);
+          populateDropdown('dateColumn', headers);
+          populateDropdown('serviceAddressColumn', headers);
+          populateDropdown('nonUsageColumn', headers);
+          populateDropdown('daysInPeriodColumn', headers);
+          
+          document.getElementById('analyzeButton').disabled = false;
+          showMessage('CSV file loaded successfully', 'success');
+          hideLoading();
+        },
+        error: function(error) {
+          showMessage(`Error parsing CSV: ${error.message}`, 'error');
+          hideLoading();
+        }
+      };
+      
+      Papa.parse(csvContent, config);
+    }
+    
+    // main analysis function
+    function analyzeData() {
+      const monthCol = document.getElementById('monthColumn').value;
+      const yearCol = document.getElementById('yearColumn').value;
+      const usageCol = document.getElementById('usageColumn').value;
+      const costCol = document.getElementById('costColumn').value;
+      const dateCol = document.getElementById('dateColumn').value;
+      const addressCol = document.getElementById('serviceAddressColumn').value;
+      const nonUsageCol = document.getElementById('nonUsageColumn').value;
+      const daysCol = document.getElementById('daysInPeriodColumn').value;
+      
+      if (!monthCol || !yearCol || !usageCol || !costCol) {
+        showMessage('Please select all required columns', 'error');
+        return;
+      }
+      
+      showLoading();
+      
+      try {
+        // process data
+        processedData = rawData
+          .map(row => {
+            const month = parseInt(row[monthCol]);
+            const year = parseInt(row[yearCol]);
+            const usage = parseFloat(row[usageCol]);
+            const cost = parseFloat(row[costCol]);
+            const nonUsageExpense = nonUsageCol ? parseFloat(row[nonUsageCol]) || 0 : 0;
+            const daysInPeriod = daysCol ? parseInt(row[daysCol]) || 30 : 30;
+            const dateValue = dateCol ? row[dateCol] : null;
+            const address = addressCol ? row[addressCol] : 'Unknown';
+            
+            if (isNaN(month) || isNaN(year) || isNaN(usage) || isNaN(cost)) {
+              return null;
+            }
+            
+            const effectiveExpense = cost; // Using cost as effective expense
+            const usageExpense = effectiveExpense - nonUsageExpense;
+            const usageRate = usageExpense / usage;
+            
+            return {
+              year: year,
+              month: month,
+              usage: usage,
+              cost: cost,
+              costPerUnit: cost / usage,
+              date: new Date(year, month - 1),
+              effectiveExpense: effectiveExpense,
+              usageExpense: usageExpense,
+              nonUsageExpense: nonUsageExpense,
+              daysInPeriod: daysInPeriod,
+              address: address,
+              usageRate: usageRate
+            };
+          })
+          .filter(row => row !== null)
+          .sort((a, b) => a.date - b.date);
+        
+        if (processedData.length === 0) {
+          showMessage('No valid data found in selected columns', 'error');
+          hideLoading();
+          return;
+        }
+        
+        // update dashboard
+        updateDashboard();
+        updateExecutiveSummary();
+        updateConsumptionAnalysis();
+        
+        showMessage('Analysis complete', 'success');
+        hideLoading();
+        
+      } catch (error) {
+        showMessage(`Error during analysis: ${error.message}`, 'error');
+        hideLoading();
+      }
+    }
+    
+    // dashboard updates
+    function updateDashboard() {
+      updateKPIs();
+      updateAlerts();
+      updateFinancialSnapshot();
+      updateCharts();
+      updateDataTable();
+    }
+    
+    function updateKPIs() {
+      if (processedData.length < 2) return;
+      
+      const latest = processedData[processedData.length - 1];
+      const previous = processedData[processedData.length - 2];
+      const monthlyBudget = parseFloat(document.getElementById('monthlyBudget').value);
+      const usageTarget = parseFloat(document.getElementById('usageTarget').value);
+      
+      // cost kpi
+      document.getElementById('kpiCost').textContent = `$${latest.cost.toFixed(2)}`;
+      const costPercentChange = ((latest.cost - previous.cost) / previous.cost) * 100;
+      document.getElementById('costTrend').className = `trend-arrow ${costPercentChange > 0 ? 'trend-up' : 'trend-down'}`;
+      document.getElementById('costTrend').textContent = costPercentChange > 0 ? '↑' : '↓';
+      document.getElementById('costTrendPercent').textContent = `${Math.abs(costPercentChange).toFixed(1)}%`;
+      document.getElementById('costComparison').textContent = `$${(latest.cost - previous.cost).toFixed(2)}`;
+      document.getElementById('costTarget').textContent = `$${monthlyBudget}`;
+      
+      const costStatus = latest.cost <= monthlyBudget ? 'On Track' : 'Over Budget';
+      const costStatusClass = latest.cost <= monthlyBudget ? 'status-good' : 'status-alert';
+      document.getElementById('costStatus').textContent = costStatus;
+      document.getElementById('costStatus').className = costStatusClass;
+      
+      // usage kpi
+      document.getElementById('kpiUsage').textContent = latest.usage.toFixed(2);
+      const usagePercentChange = ((latest.usage - previous.usage) / previous.usage) * 100;
+      document.getElementById('usageTrend').className = `trend-arrow ${usagePercentChange > 0 ? 'trend-up' : 'trend-down'}`;
+      document.getElementById('usageTrend').textContent = usagePercentChange > 0 ? '↑' : '↓';
+      document.getElementById('usageTrendPercent').textContent = `${Math.abs(usagePercentChange).toFixed(1)}%`;
+      document.getElementById('usageComparison').textContent = (latest.usage - previous.usage).toFixed(2);
+      document.getElementById('usageTargetValue').textContent = usageTarget;
+      
+      const usageStatus = latest.usage <= usageTarget ? 'On Track' : 'Over Target';
+      const usageStatusClass = latest.usage <= usageTarget ? 'status-good' : 'status-alert';
+      document.getElementById('usageStatus').textContent = usageStatus;
+      document.getElementById('usageStatus').className = usageStatusClass;
+      
+      // efficiency kpi
+      document.getElementById('kpiEfficiency').textContent = `$${latest.costPerUnit.toFixed(3)}`;
+      const efficiencyPercentChange = ((latest.costPerUnit - previous.costPerUnit) / previous.costPerUnit) * 100;
+      document.getElementById('efficiencyTrend').className = `trend-arrow ${efficiencyPercentChange > 0 ? 'trend-up' : 'trend-down'}`;
+      document.getElementById('efficiencyTrend').textContent = efficiencyPercentChange > 0 ? '↑' : '↓';
+      document.getElementById('efficiencyTrendPercent').textContent = `${Math.abs(efficiencyPercentChange).toFixed(1)}%`;
+      document.getElementById('efficiencyComparison').textContent = `$${(latest.costPerUnit - previous.costPerUnit).toFixed(3)}`;
+      
+      const efficiencyTarget = monthlyBudget / usageTarget;
+      document.getElementById('efficiencyTarget').textContent = `$${efficiencyTarget.toFixed(3)}`;
+      
+      // trend summary
+      updateSparkline();
+      const recentData = processedData.slice(-6);
+      const avgGrowth = calculateAverageGrowth(recentData);
+      document.getElementById('avgGrowth').textContent = `${avgGrowth.toFixed(1)}%`;
+      
+      const trendSummary = avgGrowth > 5 ? 'Increasing' : avgGrowth < -5 ? 'Decreasing' : 'Stable';
+      document.getElementById('kpiTrendSummary').textContent = trendSummary;
+    }
+    
+    function updateSparkline() {
+      const canvas = document.getElementById('usageSparkline');
+      const ctx = canvas.getContext('2d');
+      const recentData = processedData.slice(-6);
+      
+      if (charts.sparkline) {
+        charts.sparkline.destroy();
+      }
+      
+      charts.sparkline = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: recentData.map(d => `${d.month}/${d.year}`),
+          datasets: [{
+            data: recentData.map(d => d.usage),
+            borderColor: '#F47C20',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: false,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { display: false },
+            y: { display: false }
+          }
+        }
+      });
+    }
+    
+    function calculateAverageGrowth(data) {
+      if (data.length < 2) return 0;
+      
+      let totalGrowth = 0;
+      for (let i = 1; i < data.length; i++) {
+        const growth = ((data[i].usage - data[i-1].usage) / data[i-1].usage) * 100;
+        totalGrowth += growth;
+      }
+      
+      return totalGrowth / (data.length - 1);
+    }
+    
+    function updateAlerts() {
+      const alerts = [];
+      const latest = processedData[processedData.length - 1];
+      const monthlyBudget = parseFloat(document.getElementById('monthlyBudget').value);
+      const usageTarget = parseFloat(document.getElementById('usageTarget').value);
+      
+      if (latest.cost > monthlyBudget * 1.2) {
+        alerts.push(`Cost exceeds budget by ${((latest.cost - monthlyBudget) / monthlyBudget * 100).toFixed(1)}%`);
+      }
+      
+      if (latest.usage > usageTarget * 1.15) {
+        alerts.push(`Usage exceeds target by ${((latest.usage - usageTarget) / usageTarget * 100).toFixed(1)}%`);
+      }
+      
+      const efficiency = latest.costPerUnit;
+      const avgEfficiency = processedData.reduce((sum, d) => sum + d.costPerUnit, 0) / processedData.length;
+      if (efficiency > avgEfficiency * 1.3) {
+        alerts.push(`Cost per unit is ${((efficiency - avgEfficiency) / avgEfficiency * 100).toFixed(1)}% above average`);
+      }
+      
+      const alertSection = document.getElementById('alertSection');
+      const alertItems = document.getElementById('alertItems');
+      
+      if (alerts.length > 0) {
+        alertSection.style.display = 'block';
+        alertItems.innerHTML = alerts.map(alert => `<div class="alert-item">${alert}</div>`).join('');
+      } else {
+        alertSection.style.display = 'none';
+      }
+    }
+    
+    function updateFinancialSnapshot() {
+      const latest = processedData[processedData.length - 1];
+      const monthlyBudget = parseFloat(document.getElementById('monthlyBudget').value);
+      
+      // this period
+      document.getElementById('thisPeriodCost').textContent = `$${latest.cost.toFixed(2)}`;
+      document.getElementById('thisPeriodUsage').textContent = latest.usage.toFixed(2);
+      document.getElementById('thisPeriodEfficiency').textContent = `$${latest.costPerUnit.toFixed(3)}`;
+      
+      // year to date
+      const currentYear = latest.year;
+      const ytdData = processedData.filter(d => d.year === currentYear);
+      const ytdSpend = ytdData.reduce((sum, d) => sum + d.cost, 0);
+      const budgetUtilized = (ytdSpend / (monthlyBudget * 12)) * 100;
+      const projectedAnnual = (ytdSpend / ytdData.length) * 12;
+      
+      document.getElementById('ytdSpend').textContent = `$${ytdSpend.toFixed(2)}`;
+      document.getElementById('budgetUtilized').textContent = `${budgetUtilized.toFixed(1)}%`;
+      document.getElementById('projectedAnnual').textContent = `$${projectedAnnual.toFixed(2)}`;
+    }
+    
+    function updateCharts() {
+      // main chart
+      const ctx = document.getElementById('trendsChart').getContext('2d');
+      if (charts.trends) {
+        charts.trends.destroy();
+      }
+      
+      charts.trends = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: processedData.map(d => `${d.month}/${d.year}`),
+          datasets: [{
+            label: 'Usage',
+            data: processedData.map(d => d.usage),
+            borderColor: '#0C223A',
+            backgroundColor: 'rgba(12, 34, 58, 0.1)',
+            yAxisID: 'y'
+          }, {
+            label: 'Cost ($)',
+            data: processedData.map(d => d.cost),
+            borderColor: '#F47C20',
+            backgroundColor: 'rgba(244, 124, 32, 0.1)',
+            yAxisID: 'y1'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          scales: {
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Usage'
+              }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              grid: {
+                drawOnChartArea: false,
+              },
+              title: {
+                display: true,
+                text: 'Cost ($)'
+              }
+            }
+          }
+        }
+      });
+      
+      // target comparison chart
+      const targetCtx = document.getElementById('targetChart').getContext('2d');
+      if (charts.target) {
+        charts.target.destroy();
+      }
+      
+      const monthlyBudget = parseFloat(document.getElementById('monthlyBudget').value);
+      const usageTarget = parseFloat(document.getElementById('usageTarget').value);
+      
+      charts.target = new Chart(targetCtx, {
+        type: 'bar',
+        data: {
+          labels: processedData.map(d => `${d.month}/${d.year}`),
+          datasets: [{
+            label: 'Actual Cost',
+            data: processedData.map(d => d.cost),
+            backgroundColor: 'rgba(244, 124, 32, 0.7)',
+            borderColor: '#F47C20',
+            borderWidth: 1
+          }, {
+            label: 'Target Cost',
+            data: Array(processedData.length).fill(monthlyBudget),
+            type: 'line',
+            borderColor: 'rgba(255, 0, 0, 0.7)',
+            borderDash: [5, 5],
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              title: {
+                display: true,
+                text: 'Cost ($)'
+              }
+            }
+          }
+        }
+      });
+      
+      // advanced analytics chart
+      updateAdvancedChart();
+      updateSeasonalChart();
+    }
+    
+    function updateAdvancedChart() {
+      const ctx = document.getElementById('advancedChart')?.getContext('2d');
+      if (!ctx) return;
+      
+      if (charts.advanced) {
+        charts.advanced.destroy();
+      }
+      
+      charts.advanced = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: processedData.map(d => `${d.month}/${d.year}`),
+          datasets: [{
+            label: 'Cost per Unit',
+            data: processedData.map(d => d.costPerUnit),
+            borderColor: '#0C223A',
+            backgroundColor: 'rgba(12, 34, 58, 0.1)',
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              title: {
+                display: true,
+                text: 'Cost per Unit ($)'
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    function updateSeasonalChart() {
+      const ctx = document.getElementById('seasonalChart')?.getContext('2d');
+      if (!ctx) return;
+      
+      if (charts.seasonal) {
+        charts.seasonal.destroy();
+      }
+      
+      // aggregate by month
+      const monthlyAvg = Array(12).fill(0);
+      const monthlyCount = Array(12).fill(0);
+      
+      processedData.forEach(d => {
+        monthlyAvg[d.month - 1] += d.cost;
+        monthlyCount[d.month - 1]++;
+      });
+      
+      for (let i = 0; i < 12; i++) {
+        if (monthlyCount[i] > 0) {
+          monthlyAvg[i] /= monthlyCount[i];
+        }
+      }
+      
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      charts.seasonal = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: monthNames,
+          datasets: [{
+            label: 'Average Monthly Cost',
+            data: monthlyAvg,
+            backgroundColor: 'rgba(244, 124, 32, 0.7)',
+            borderColor: '#F47C20',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              title: {
+                display: true,
+                text: 'Average Cost ($)'
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    function updateChartsForTab(tabName) {
+      if (tabName === 'trends') {
+        updateAdvancedChart();
+        updateSeasonalChart();
+      } else if (tabName === 'consumption') {
+        updateConsumptionAnalysis();
+      }
+    }
+    
+    function updateDataTable() {
+      const tbody = document.querySelector('#dataTable tbody');
+      tbody.innerHTML = '';
+      
+      processedData.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="padding: 8px; border: 1px solid #ddd;">${row.year}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${row.month}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${row.usage.toFixed(2)}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${row.cost.toFixed(2)}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${row.costPerUnit.toFixed(3)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    
+    function updateExecutiveSummary() {
+      if (processedData.length === 0) return;
+      
+      // Monthly Water Expenditure
+      const totalEffectiveExpense = processedData.reduce((sum, row) => sum + row.effectiveExpense, 0);
+      const totalUsageExpense = processedData.reduce((sum, row) => sum + row.usageExpense, 0);
+      const totalNonUsageExpense = processedData.reduce((sum, row) => sum + row.nonUsageExpense, 0);
+      const nonUsagePercentage = totalEffectiveExpense > 0 ? 
+        (totalNonUsageExpense / totalEffectiveExpense) * 100 : 0;
+      
+      document.getElementById('execTotalExpense').textContent = `${totalEffectiveExpense.toFixed(2)}`;
+      document.getElementById('execNonUtilityPercent').textContent = `${nonUsagePercentage.toFixed(1)}%`;
+      
+      let rationale = `Rationale: ${Math.round(nonUsagePercentage)}% of entries show 'Non Usage Expense' >${((0.15 * totalEffectiveExpense) / totalNonUsageExpense).toFixed(0)}% of total costs`;
+      if (totalNonUsageExpense > totalEffectiveExpense * 0.15) {
+        rationale += ', indicating potential billing anomalies';
+      }
+      document.getElementById('execExpenseRationale').textContent = rationale;
+      
+      // Unit Efficiency Metrics
+      const aggregatedByAddress = new Map();
+      processedData.forEach(row => {
+        if (!aggregatedByAddress.has(row.address)) {
+          aggregatedByAddress.set(row.address, { totalUsage: 0, count: 0 });
+        }
+        const prop = aggregatedByAddress.get(row.address);
+        prop.totalUsage += row.usage;
+        prop.count += 1;
+      });
+      
+      let avgUsagePerUnit = 0;
+      let totalUnits = 0;
+      aggregatedByAddress.forEach(prop => {
+        avgUsagePerUnit += prop.totalUsage;
+        totalUnits += prop.count;
+      });
+      avgUsagePerUnit = totalUnits > 0 ? avgUsagePerUnit / totalUnits : 0;
+      
+      document.getElementById('execAvgUsagePerUnit').textContent = avgUsagePerUnit.toFixed(2);
+      
+      // Outlier Detection
+      const usagePerUnitValues = [];
+      aggregatedByAddress.forEach(prop => {
+        usagePerUnitValues.push(prop.totalUsage / prop.count);
+      });
+      
+      const mean = usagePerUnitValues.reduce((sum, val) => sum + val, 0) / usagePerUnitValues.length;
+      const stdDev = Math.sqrt(
+        usagePerUnitValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / usagePerUnitValues.length
+      );
+      
+      let outlierCount = 0;
+      aggregatedByAddress.forEach(prop => {
+        const propAvgUsage = prop.totalUsage / prop.count;
+        if (propAvgUsage > mean + 2 * stdDev) {
+          outlierCount++;
+        }
+      });
+      
+      document.getElementById('execOutlierCount').textContent = `${outlierCount} properties flagged`;
+      
+      if (outlierCount > 0) {
+        document.getElementById('execOutlierSummary').style.display = 'block';
+        document.getElementById('execOutlierSummary').textContent = 
+          `${outlierCount} properties with 'Usage_Per_Unit' > 2σ from mean detected`;
+      }
+      
+      // Service Continuity
+      const consistentDays = processedData.filter(row => row.daysInPeriod === 30).length;
+      const consistencyPercentage = (consistentDays / processedData.length) * 100;
+      const zeroPeriodCount = processedData.filter(row => row.daysInPeriod === 0).length;
+      
+      document.getElementById('execDaysConsistency').textContent = `${consistencyPercentage.toFixed(1)}% consistent`;
+      document.getElementById('execZeroPeriodCount').textContent = `${zeroPeriodCount} records`;
+    }
+    
+    function updateConsumptionAnalysis() {
+      if (processedData.length === 0) return;
+      
+      // Temporal Patterns Chart
+      const temporalCtx = document.getElementById('temporalChart')?.getContext('2d');
+      if (temporalCtx) {
+        if (charts.temporal) {
+          charts.temporal.destroy();
+        }
+        
+        // Aggregate usage by date
+        const usageByDate = new Map();
+        processedData.forEach(row => {
+          const dateKey = `${row.year}-${row.month}`;
+          if (!usageByDate.has(dateKey)) {
+            usageByDate.set(dateKey, 0);
+          }
+          usageByDate.set(dateKey, usageByDate.get(dateKey) + row.usage);
+        });
+        
+        const dates = Array.from(usageByDate.keys()).sort();
+        const usageValues = dates.map(date => usageByDate.get(date));
+        
+        charts.temporal = new Chart(temporalCtx, {
+          type: 'line',
+          data: {
+            labels: dates,
+            datasets: [{
+              label: 'Daily Total Usage',
+              data: usageValues,
+              borderColor: '#0C223A',
+              backgroundColor: 'rgba(12, 34, 58, 0.1)',
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                title: {
+                  display: true,
+                  text: 'Usage'
+                }
+              }
+            }
+          }
+        });
+        
+        // Check for multi-month records
+        const multiMonthRecords = processedData.filter(row => row.daysInPeriod > 31).length;
+        const multiMonthPercentage = (multiMonthRecords / processedData.length) * 100;
+        document.getElementById('temporalAnalysis').textContent = 
+          `${multiMonthPercentage.toFixed(0)}% of records span multiple months ('Multi_Month_Record'=True), requiring weighted averaging`;
+      }
+      
+      // Property-Level Benchmarking Chart
+      const benchmarkCtx = document.getElementById('benchmarkingChart')?.getContext('2d');
+      if (benchmarkCtx) {
+        if (charts.benchmark) {
+          charts.benchmark.destroy();
+        }
+        
+        // Calculate top 10 consumers
+        const propertyUsage = new Map();
+        processedData.forEach(row => {
+          if (!propertyUsage.has(row.address)) {
+            propertyUsage.set(row.address, 0);
+          }
+          propertyUsage.set(row.address, propertyUsage.get(row.address) + row.usage);
+        });
+        
+        const sortedProperties = Array.from(propertyUsage.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10);
+        
+        const propertyNames = sortedProperties.map(p => p[0]);
+        const propertyUsageValues = sortedProperties.map(p => p[1]);
+        
+        charts.benchmark = new Chart(benchmarkCtx, {
+          type: 'bar',
+          data: {
+            labels: propertyNames,
+            datasets: [{
+              label: 'Total Usage',
+              data: propertyUsageValues,
+              backgroundColor: 'rgba(244, 124, 32, 0.7)',
+              borderColor: '#F47C20',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                title: {
+                  display: true,
+                  text: 'Total Usage'
+                }
+              }
+            }
+          }
+        });
+        
+        // Update top 10 table
+        const tbody = document.querySelector('#top10Table tbody');
+        tbody.innerHTML = '';
+        
+        sortedProperties.forEach(([property, usage]) => {
+          const tr = document.createElement('tr');
+          const avgUsage = usage / processedData.filter(r => r.address === property).length;
+          const status = avgUsage > 2000 ? 'High Usage' : 'Normal';
+          tr.innerHTML = `
+            <td>${property}</td>
+            <td>${usage.toFixed(2)}</td>
+            <td>1</td>
+            <td>${avgUsage.toFixed(2)}</td>
+            <td>${status}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+      
+      // Rate Analysis Chart
+      const rateCtx = document.getElementById('rateChart')?.getContext('2d');
+      if (rateCtx) {
+        if (charts.rate) {
+          charts.rate.destroy();
+        }
+        
+        const rateFrequency = new Map();
+        processedData.forEach(row => {
+          const rateKey = Math.round(row.usageRate * 10) / 10; // Round to 1 decimal place
+          if (!rateFrequency.has(rateKey)) {
+            rateFrequency.set(rateKey, 0);
+          }
+          rateFrequency.set(rateKey, rateFrequency.get(rateKey) + 1);
+        });
+        
+        const rates = Array.from(rateFrequency.keys()).sort((a, b) => a - b);
+        const frequencies = rates.map(rate => rateFrequency.get(rate));
+        
+        charts.rate = new Chart(rateCtx, {
+          type: 'bar',
+          data: {
+            labels: rates.map(rate => rate.toFixed(2)),
+            datasets: [{
+              label: 'Usage Rate Distribution',
+              data: frequencies,
+              backgroundColor: 'rgba(12, 34, 58, 0.7)',
+              borderColor: '#0C223A',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                title: {
+                  display: true,
+                  text: 'Frequency'
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: 'Rate ($/unit)'
+                }
+              }
+            }
+          }
+        });
+      }
+      
+      // Rate Correlation Chart
+      const corrCtx = document.getElementById('rateCorrelationChart')?.getContext('2d');
+      if (corrCtx) {
+        if (charts.correlation) {
+          charts.correlation.destroy();
+        }
+        
+        const scatterData = processedData.map(row => ({
+          x: row.usageRate,
+          y: row.costPerUnit
+        }));
+        
+        charts.correlation = new Chart(corrCtx, {
+          type: 'scatter',
+          data: {
+            datasets: [{
+              label: 'Rate vs Cost per Unit',
+              data: scatterData,
+              backgroundColor: 'rgba(244, 124, 32, 0.7)',
+              borderColor: '#F47C20',
+              pointRadius: 5
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: 'Usage Rate'
+                }
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: 'Cost per Unit'
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+    
+    // data export
+    function exportData(format) {
+      if (processedData.length === 0) {
+        showMessage('No data to export', 'error');
+        return;
+      }
+      
+      let content = '';
+      let filename = '';
+      let type = '';
+      
+      if (format === 'csv') {
+        const headers = ['Year', 'Month', 'Usage', 'Cost', 'Cost per Unit'];
+        const rows = processedData.map(row => [row.year, row.month, row.usage, row.cost, row.costPerUnit]);
+        
+        content = Papa.unparse([headers, ...rows]);
+        filename = 'water_analytics_export.csv';
+        type = 'text/csv;charset=utf-8;';
+      } else if (format === 'json') {
+        content = JSON.stringify(processedData, null, 2);
+        filename = 'water_analytics_export.json';
+        type = 'application/json;charset=utf-8;';
+      }
+      
+      const blob = new Blob([content], { type: type });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      
+      setTimeout(() => {
+        URL.revokeObjectURL(link.href);
+      }, 100);
+      
+      showMessage(`Exported as ${format.toUpperCase()}`, 'success');
+    }
+  </script>
+</body>
+</html>

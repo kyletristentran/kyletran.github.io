@@ -424,7 +424,7 @@ class RealEstateDashboard:
         if st.sidebar.button("🔑 Login"):
             if username and password:
                 # Simple credential check
-                if (username == "admin" and password == "admin123") or (username == "kyle" and password == "kyle123"):
+                if username == "kyle" and password == "kyle123":
                     st.session_state.authenticated = True
                     st.session_state.username = username
                     st.sidebar.success("✅ Login successful!")
@@ -434,8 +434,8 @@ class RealEstateDashboard:
             else:
                 st.sidebar.warning("⚠️ Please enter both username and password")
         
-        # Show demo credentials
-        st.sidebar.info("**Demo Credentials:**\n- admin / admin123\n- kyle / kyle123")
+        # Show login note
+        st.sidebar.info("**Note:** Use kyle / kyle123 to preview the database dashboard")
         
         return False, None
     
@@ -614,6 +614,153 @@ class RealEstateDashboard:
         return ""
     
     # Removed create_financial_card method - using native Streamlit components instead
+    
+    def get_property_list(self):
+        """Retrieve the list of properties from the database"""
+        if not self.conn:
+            if not self.connect_to_database():
+                return []
+        
+        try:
+            query = "SELECT PropertyID, PropertyName FROM dbo.Properties ORDER BY PropertyName"
+            cursor = self.conn.cursor()
+            cursor.execute(query)
+            
+            properties = [(row.PropertyID, row.PropertyName) for row in cursor.fetchall()]
+            return properties
+        except Exception as e:
+            st.error(f"❌ Error retrieving property list: {str(e)}")
+            return []
+    
+    def import_monthly_financials(self, property_id, reporting_month, data):
+        """Import monthly financial data for a property"""
+        if not self.conn:
+            if not self.connect_to_database():
+                return False
+        
+        try:
+            # Check if we already have a record for this property and month
+            check_query = """
+            SELECT FinancialID FROM dbo.MonthlyFinancials 
+            WHERE PropertyID = ? AND ReportingMonth = ?
+            """
+            
+            cursor = self.conn.cursor()
+            cursor.execute(check_query, (property_id, reporting_month))
+            existing_record = cursor.fetchone()
+            
+            if existing_record:
+                # Update existing record
+                financial_id = existing_record[0]
+                update_query = """
+                UPDATE dbo.MonthlyFinancials SET
+                    GrossRent = ?, Vacancy = ?, OtherIncome = ?, TotalIncome = ?,
+                    RepairsMaintenance = ?, Utilities = ?, PropertyManagement = ?,
+                    PropertyTaxes = ?, Insurance = ?, Marketing = ?, Administrative = ?,
+                    TotalExpenses = ?, NOI = ?, DebtService = ?, CashFlow = ?,
+                    Occupancy = ?, FilePath = ?
+                WHERE FinancialID = ?
+                """
+                
+                cursor.execute(update_query, (
+                    data.get('GrossRent', 0), data.get('Vacancy', 0), data.get('OtherIncome', 0),
+                    data.get('TotalIncome', 0), data.get('RepairsMaintenance', 0), data.get('Utilities', 0),
+                    data.get('PropertyManagement', 0), data.get('PropertyTaxes', 0), data.get('Insurance', 0),
+                    data.get('Marketing', 0), data.get('Administrative', 0), data.get('TotalExpenses', 0),
+                    data.get('NOI', 0), data.get('DebtService', 0), data.get('CashFlow', 0),
+                    data.get('Occupancy', 0), data.get('FilePath', 'Streamlit Import'),
+                    financial_id
+                ))
+            else:
+                # Insert new record
+                insert_query = """
+                INSERT INTO dbo.MonthlyFinancials (
+                    PropertyID, ReportingMonth, GrossRent, Vacancy, OtherIncome, TotalIncome,
+                    RepairsMaintenance, Utilities, PropertyManagement, PropertyTaxes, Insurance,
+                    Marketing, Administrative, TotalExpenses, NOI, DebtService, CashFlow,
+                    Occupancy, FilePath
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+                
+                cursor.execute(insert_query, (
+                    property_id, reporting_month, data.get('GrossRent', 0), data.get('Vacancy', 0),
+                    data.get('OtherIncome', 0), data.get('TotalIncome', 0), data.get('RepairsMaintenance', 0),
+                    data.get('Utilities', 0), data.get('PropertyManagement', 0), data.get('PropertyTaxes', 0),
+                    data.get('Insurance', 0), data.get('Marketing', 0), data.get('Administrative', 0),
+                    data.get('TotalExpenses', 0), data.get('NOI', 0), data.get('DebtService', 0),
+                    data.get('CashFlow', 0), data.get('Occupancy', 0), 'Streamlit Import'
+                ))
+            
+            self.conn.commit()
+            return True
+            
+        except Exception as e:
+            st.error(f"❌ Error importing financial data: {str(e)}")
+            if self.conn:
+                self.conn.rollback()
+            return False
+    
+    def get_financial_history(self, property_id=None):
+        """Get financial history for properties"""
+        if not self.conn:
+            if not self.connect_to_database():
+                return pd.DataFrame()
+        
+        try:
+            if property_id:
+                query = """
+                SELECT 
+                    p.PropertyName, mf.FinancialID, mf.ReportingMonth,
+                    mf.GrossRent, mf.Vacancy, mf.OtherIncome, mf.TotalIncome,
+                    mf.RepairsMaintenance, mf.Utilities, mf.PropertyManagement,
+                    mf.PropertyTaxes, mf.Insurance, mf.Marketing, mf.Administrative,
+                    mf.TotalExpenses, mf.NOI, mf.DebtService, mf.CashFlow, mf.Occupancy
+                FROM dbo.MonthlyFinancials mf
+                JOIN dbo.Properties p ON mf.PropertyID = p.PropertyID
+                WHERE mf.PropertyID = ?
+                ORDER BY mf.ReportingMonth DESC
+                """
+                df = pd.read_sql(query, self.conn, params=[property_id])
+            else:
+                query = """
+                SELECT 
+                    p.PropertyName, mf.FinancialID, mf.ReportingMonth,
+                    mf.GrossRent, mf.Vacancy, mf.OtherIncome, mf.TotalIncome,
+                    mf.RepairsMaintenance, mf.Utilities, mf.PropertyManagement,
+                    mf.PropertyTaxes, mf.Insurance, mf.Marketing, mf.Administrative,
+                    mf.TotalExpenses, mf.NOI, mf.DebtService, mf.CashFlow, mf.Occupancy
+                FROM dbo.MonthlyFinancials mf
+                JOIN dbo.Properties p ON mf.PropertyID = p.PropertyID
+                ORDER BY p.PropertyName, mf.ReportingMonth DESC
+                """
+                df = pd.read_sql(query, self.conn)
+            
+            if not df.empty:
+                df['ReportingMonth'] = pd.to_datetime(df['ReportingMonth'])
+            return df
+            
+        except Exception as e:
+            st.error(f"❌ Error retrieving financial history: {str(e)}")
+            return pd.DataFrame()
+    
+    def delete_financial_record(self, financial_id):
+        """Delete a financial record"""
+        if not self.conn:
+            if not self.connect_to_database():
+                return False
+        
+        try:
+            query = "DELETE FROM dbo.MonthlyFinancials WHERE FinancialID = ?"
+            cursor = self.conn.cursor()
+            cursor.execute(query, (financial_id,))
+            self.conn.commit()
+            return True
+            
+        except Exception as e:
+            st.error(f"❌ Error deleting financial record: {str(e)}")
+            if self.conn:
+                self.conn.rollback()
+            return False
 
 def main():
     # Header
@@ -670,12 +817,13 @@ def main():
         st.rerun()
     
     # Main content with tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Performance Overview",
         "Portfolio Analysis",
         "Financial Trends",
         "Property Details",
-        "Data Management"
+        "Data Management",
+        "Monthly Financials"
     ])
     
     try:
@@ -941,6 +1089,418 @@ def main():
                             file_name=f"kpi_summary_{datetime.now().strftime('%Y%m%d')}.csv",
                             mime="text/csv"
                         )
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Tab 6: Monthly Financials
+        with tab6:
+            st.markdown('<div class="section">', unsafe_allow_html=True)
+            st.subheader("💰 Monthly Financials Management")
+            
+            # Get property list for dropdowns
+            properties = dashboard.get_property_list()
+            if not properties:
+                st.error("No properties found in database. Please add properties first.")
+                st.markdown('</div>', unsafe_allow_html=True)
+                return
+            
+            # Create tabs within Monthly Financials
+            finance_tab1, finance_tab2, finance_tab3, finance_tab4 = st.tabs([
+                "📝 Manual Entry", "📁 CSV Import", "📊 Financial History", "🗑️ Data Management"
+            ])
+            
+            # Manual Entry Tab
+            with finance_tab1:
+                st.markdown("#### Manual Financial Data Entry")
+                
+                with st.form("manual_entry_form"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Property selection
+                        property_options = {name: id for id, name in properties}
+                        selected_property = st.selectbox(
+                            "Select Property", 
+                            options=list(property_options.keys())
+                        )
+                        property_id = property_options[selected_property]
+                        
+                        # Reporting month
+                        reporting_month = st.date_input(
+                            "Reporting Month",
+                            value=datetime.now().replace(day=1)
+                        )
+                    
+                    with col2:
+                        st.markdown("**Quick Calculations**")
+                        if st.checkbox("Auto-calculate totals"):
+                            auto_calc = True
+                        else:
+                            auto_calc = False
+                    
+                    # Income Section
+                    st.markdown("#### 💰 Income")
+                    income_col1, income_col2, income_col3 = st.columns(3)
+                    
+                    with income_col1:
+                        gross_rent = st.number_input("Gross Rent ($)", min_value=0.0, step=100.0, format="%.2f")
+                        other_income = st.number_input("Other Income ($)", min_value=0.0, step=50.0, format="%.2f")
+                    
+                    with income_col2:
+                        vacancy = st.number_input("Vacancy Loss ($)", min_value=0.0, step=50.0, format="%.2f")
+                        occupancy = st.number_input("Occupancy (%)", min_value=0.0, max_value=100.0, value=95.0, step=1.0, format="%.1f")
+                    
+                    with income_col3:
+                        if auto_calc:
+                            total_income = gross_rent - vacancy + other_income
+                            st.metric("Total Income", f"${total_income:,.2f}")
+                        else:
+                            total_income = st.number_input("Total Income ($)", min_value=0.0, step=100.0, format="%.2f")
+                    
+                    # Expenses Section
+                    st.markdown("#### 💸 Expenses")
+                    exp_col1, exp_col2, exp_col3 = st.columns(3)
+                    
+                    with exp_col1:
+                        repairs_maintenance = st.number_input("Repairs & Maintenance ($)", min_value=0.0, step=50.0, format="%.2f")
+                        utilities = st.number_input("Utilities ($)", min_value=0.0, step=25.0, format="%.2f")
+                        property_management = st.number_input("Property Management ($)", min_value=0.0, step=50.0, format="%.2f")
+                    
+                    with exp_col2:
+                        property_taxes = st.number_input("Property Taxes ($)", min_value=0.0, step=100.0, format="%.2f")
+                        insurance = st.number_input("Insurance ($)", min_value=0.0, step=50.0, format="%.2f")
+                        marketing = st.number_input("Marketing ($)", min_value=0.0, step=25.0, format="%.2f")
+                    
+                    with exp_col3:
+                        administrative = st.number_input("Administrative ($)", min_value=0.0, step=25.0, format="%.2f")
+                        debt_service = st.number_input("Debt Service ($)", min_value=0.0, step=100.0, format="%.2f")
+                        
+                        if auto_calc:
+                            total_expenses = (repairs_maintenance + utilities + property_management + 
+                                            property_taxes + insurance + marketing + administrative)
+                            st.metric("Total Expenses", f"${total_expenses:,.2f}")
+                        else:
+                            total_expenses = st.number_input("Total Expenses ($)", min_value=0.0, step=100.0, format="%.2f")
+                    
+                    # Calculated Fields
+                    st.markdown("#### 📊 Calculated Metrics")
+                    calc_col1, calc_col2, calc_col3 = st.columns(3)
+                    
+                    if auto_calc:
+                        total_income = gross_rent - vacancy + other_income
+                        total_expenses = (repairs_maintenance + utilities + property_management + 
+                                        property_taxes + insurance + marketing + administrative)
+                    
+                    noi = total_income - total_expenses
+                    cash_flow = noi - debt_service
+                    
+                    with calc_col1:
+                        st.metric("Net Operating Income", f"${noi:,.2f}", 
+                                delta="Positive" if noi > 0 else "Negative")
+                    with calc_col2:
+                        st.metric("Cash Flow", f"${cash_flow:,.2f}",
+                                delta="Positive" if cash_flow > 0 else "Negative")
+                    with calc_col3:
+                        if total_income > 0:
+                            noi_margin = (noi / total_income) * 100
+                            st.metric("NOI Margin", f"{noi_margin:.1f}%")
+                    
+                    # Submit button
+                    submitted = st.form_submit_button("💾 Save Financial Data", type="primary")
+                    
+                    if submitted:
+                        financial_data = {
+                            'GrossRent': gross_rent,
+                            'Vacancy': vacancy,
+                            'OtherIncome': other_income,
+                            'TotalIncome': total_income,
+                            'RepairsMaintenance': repairs_maintenance,
+                            'Utilities': utilities,
+                            'PropertyManagement': property_management,
+                            'PropertyTaxes': property_taxes,
+                            'Insurance': insurance,
+                            'Marketing': marketing,
+                            'Administrative': administrative,
+                            'TotalExpenses': total_expenses,
+                            'NOI': noi,
+                            'DebtService': debt_service,
+                            'CashFlow': cash_flow,
+                            'Occupancy': occupancy
+                        }
+                        
+                        if dashboard.import_monthly_financials(property_id, reporting_month, financial_data):
+                            st.success(f"✅ Financial data saved successfully for {selected_property} - {reporting_month}")
+                            st.rerun()
+                        else:
+                            st.error("❌ Failed to save financial data")
+            
+            # CSV Import Tab
+            with finance_tab2:
+                st.markdown("#### CSV File Import")
+                
+                # Show CSV format template
+                with st.expander("📋 View CSV Template Format"):
+                    template_data = {
+                        'PropertyID': [1, 1, 2],
+                        'ReportingMonth': ['2024-01-01', '2024-02-01', '2024-01-01'],
+                        'GrossRent': [10000, 10500, 8000],
+                        'Vacancy': [500, 300, 400],
+                        'OtherIncome': [200, 150, 100],
+                        'TotalIncome': [9700, 10350, 7700],
+                        'RepairsMaintenance': [800, 600, 500],
+                        'Utilities': [300, 350, 250],
+                        'PropertyManagement': [970, 1035, 770],
+                        'PropertyTaxes': [1200, 1200, 900],
+                        'Insurance': [400, 400, 300],
+                        'Marketing': [100, 50, 75],
+                        'Administrative': [200, 200, 150],
+                        'TotalExpenses': [3970, 3835, 2945],
+                        'NOI': [5730, 6515, 4755],
+                        'DebtService': [4000, 4000, 3000],
+                        'CashFlow': [1730, 2515, 1755],
+                        'Occupancy': [95.0, 97.0, 95.0]
+                    }
+                    template_df = pd.DataFrame(template_data)
+                    st.dataframe(template_df, use_container_width=True)
+                    
+                    # Download template
+                    csv_template = template_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Download CSV Template",
+                        data=csv_template,
+                        file_name="financial_import_template.csv",
+                        mime="text/csv"
+                    )
+                
+                # File upload
+                uploaded_file = st.file_uploader(
+                    "Choose CSV file", 
+                    type="csv",
+                    help="Upload a CSV file with financial data. Required columns: PropertyID, ReportingMonth"
+                )
+                
+                if uploaded_file is not None:
+                    try:
+                        # Read CSV file
+                        df = pd.read_csv(uploaded_file)
+                        st.write("📊 **File Preview:**")
+                        st.dataframe(df.head(), use_container_width=True)
+                        
+                        # Validate required columns
+                        required_cols = ['PropertyID', 'ReportingMonth']
+                        missing_cols = [col for col in required_cols if col not in df.columns]
+                        
+                        if missing_cols:
+                            st.error(f"❌ Missing required columns: {missing_cols}")
+                        else:
+                            # Show import summary
+                            st.write(f"**Records to import:** {len(df)}")
+                            
+                            # Validate PropertyIDs
+                            valid_property_ids = [pid for pid, pname in properties]
+                            invalid_properties = df[~df['PropertyID'].isin(valid_property_ids)]
+                            
+                            if not invalid_properties.empty:
+                                st.warning(f"⚠️ Found {len(invalid_properties)} records with invalid PropertyIDs")
+                                st.dataframe(invalid_properties[['PropertyID', 'ReportingMonth']], use_container_width=True)
+                            
+                            if st.button("🚀 Import Financial Data", type="primary"):
+                                success_count = 0
+                                error_count = 0
+                                
+                                progress_bar = st.progress(0)
+                                status_text = st.empty()
+                                
+                                for index, row in df.iterrows():
+                                    if row['PropertyID'] in valid_property_ids:
+                                        try:
+                                            # Convert row to dict and handle NaN values
+                                            financial_data = row.to_dict()
+                                            for key, value in financial_data.items():
+                                                if pd.isna(value):
+                                                    financial_data[key] = 0
+                                            
+                                            # Parse date
+                                            reporting_date = pd.to_datetime(row['ReportingMonth']).date()
+                                            
+                                            if dashboard.import_monthly_financials(
+                                                row['PropertyID'], 
+                                                reporting_date, 
+                                                financial_data
+                                            ):
+                                                success_count += 1
+                                            else:
+                                                error_count += 1
+                                        except Exception as e:
+                                            st.error(f"Error processing row {index + 1}: {str(e)}")
+                                            error_count += 1
+                                    else:
+                                        error_count += 1
+                                    
+                                    # Update progress
+                                    progress = (index + 1) / len(df)
+                                    progress_bar.progress(progress)
+                                    status_text.text(f"Processing record {index + 1} of {len(df)}")
+                                
+                                # Show results
+                                progress_bar.empty()
+                                status_text.empty()
+                                
+                                if success_count > 0:
+                                    st.success(f"✅ Successfully imported {success_count} records")
+                                if error_count > 0:
+                                    st.error(f"❌ Failed to import {error_count} records")
+                                
+                                if success_count > 0:
+                                    st.rerun()
+                    
+                    except Exception as e:
+                        st.error(f"❌ Error reading CSV file: {str(e)}")
+            
+            # Financial History Tab
+            with finance_tab3:
+                st.markdown("#### Financial History Viewer")
+                
+                # Property filter
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    property_filter_options = {"All Properties": None}
+                    property_filter_options.update({name: id for id, name in properties})
+                    
+                    selected_filter = st.selectbox(
+                        "Filter by Property",
+                        options=list(property_filter_options.keys())
+                    )
+                    filter_property_id = property_filter_options[selected_filter]
+                
+                with col2:
+                    if st.button("🔄 Refresh History"):
+                        st.rerun()
+                
+                # Get financial history
+                history_df = dashboard.get_financial_history(filter_property_id)
+                
+                if not history_df.empty:
+                    # Summary metrics
+                    st.markdown("#### 📊 Summary Metrics")
+                    summary_col1, summary_col2, summary_col3, summary_col4 = st.columns(4)
+                    
+                    with summary_col1:
+                        st.metric("Total Records", len(history_df))
+                    with summary_col2:
+                        st.metric("Total Revenue", f"${history_df['TotalIncome'].sum():,.0f}")
+                    with summary_col3:
+                        st.metric("Total NOI", f"${history_df['NOI'].sum():,.0f}")
+                    with summary_col4:
+                        avg_occupancy = history_df['Occupancy'].mean() if 'Occupancy' in history_df.columns else 0
+                        st.metric("Avg Occupancy", f"{avg_occupancy:.1f}%")
+                    
+                    # Display data table
+                    st.markdown("#### 📋 Financial Records")
+                    
+                    # Format data for display
+                    display_history = history_df.copy()
+                    display_history['ReportingMonth'] = display_history['ReportingMonth'].dt.strftime('%Y-%m')
+                    
+                    # Format currency columns
+                    currency_cols = ['GrossRent', 'Vacancy', 'OtherIncome', 'TotalIncome', 
+                                   'RepairsMaintenance', 'Utilities', 'PropertyManagement',
+                                   'PropertyTaxes', 'Insurance', 'Marketing', 'Administrative',
+                                   'TotalExpenses', 'NOI', 'DebtService', 'CashFlow']
+                    
+                    for col in currency_cols:
+                        if col in display_history.columns:
+                            display_history[col] = display_history[col].apply(lambda x: f"${x:,.2f}")
+                    
+                    if 'Occupancy' in display_history.columns:
+                        display_history['Occupancy'] = display_history['Occupancy'].apply(lambda x: f"{x:.1f}%")
+                    
+                    st.dataframe(display_history, use_container_width=True, height=400)
+                    
+                    # Export option
+                    csv_export = history_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Export Financial History",
+                        data=csv_export,
+                        file_name=f"financial_history_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv"
+                    )
+                else:
+                    st.info("No financial history found for the selected criteria.")
+            
+            # Data Management Tab
+            with finance_tab4:
+                st.markdown("#### Data Management & Cleanup")
+                
+                # Get all financial records for management
+                all_records = dashboard.get_financial_history()
+                
+                if not all_records.empty:
+                    st.markdown("#### 🗑️ Delete Financial Records")
+                    st.warning("⚠️ **Warning:** Deleting records is permanent and cannot be undone!")
+                    
+                    # Show records with delete option
+                    records_to_show = all_records[['PropertyName', 'FinancialID', 'ReportingMonth', 'TotalIncome', 'NOI']].copy()
+                    records_to_show['ReportingMonth'] = records_to_show['ReportingMonth'].dt.strftime('%Y-%m')
+                    records_to_show['Select'] = False
+                    
+                    # Move Select column to front
+                    cols = ['Select'] + [col for col in records_to_show.columns if col != 'Select']
+                    records_to_show = records_to_show[cols]
+                    
+                    edited_df = st.data_editor(
+                        records_to_show,
+                        column_config={
+                            "Select": st.column_config.CheckboxColumn(
+                                "Select for Deletion",
+                                help="Check to select record for deletion",
+                                default=False,
+                            ),
+                            "FinancialID": st.column_config.NumberColumn(
+                                "Record ID",
+                                help="Unique identifier for the financial record"
+                            ),
+                            "TotalIncome": st.column_config.NumberColumn(
+                                "Total Income",
+                                format="$%.2f"
+                            ),
+                            "NOI": st.column_config.NumberColumn(
+                                "NOI",
+                                format="$%.2f"
+                            )
+                        },
+                        disabled=["PropertyName", "FinancialID", "ReportingMonth", "TotalIncome", "NOI"],
+                        hide_index=True,
+                        use_container_width=True
+                    )
+                    
+                    # Delete selected records
+                    selected_records = edited_df[edited_df['Select'] == True]
+                    
+                    if not selected_records.empty:
+                        st.write(f"**{len(selected_records)} record(s) selected for deletion:**")
+                        st.dataframe(selected_records[['PropertyName', 'ReportingMonth', 'TotalIncome', 'NOI']], 
+                                   use_container_width=True)
+                        
+                        col1, col2 = st.columns([1, 3])
+                        with col1:
+                            if st.button("🗑️ Delete Selected Records", type="primary"):
+                                deleted_count = 0
+                                for _, record in selected_records.iterrows():
+                                    if dashboard.delete_financial_record(record['FinancialID']):
+                                        deleted_count += 1
+                                
+                                if deleted_count > 0:
+                                    st.success(f"✅ Successfully deleted {deleted_count} record(s)")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Failed to delete records")
+                        
+                        with col2:
+                            st.info("💡 **Tip:** Review your selections carefully before deleting")
+                
+                else:
+                    st.info("No financial records found in the database.")
             
             st.markdown('</div>', unsafe_allow_html=True)
         
